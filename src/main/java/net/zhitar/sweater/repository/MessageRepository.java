@@ -1,13 +1,18 @@
 package net.zhitar.sweater.repository;
 
 import net.zhitar.sweater.domain.Message;
+import net.zhitar.sweater.domain.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
 
 @Repository
 public interface MessageRepository extends CrudRepository<Message, Long> {
 
-    List<Message> findByTag(String tag);
+    Page<Message> findAll(Pageable pageable);
+
+    Page<Message> findByAuthor(User user, Pageable pageable);
+
+    Page<Message> findByTag(String tag, Pageable pageable);
 }
