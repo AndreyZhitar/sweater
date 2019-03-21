@@ -71,7 +71,6 @@ public class MessageController {
             @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable) throws IOException {
 
         message.setAuthor(user);
-
         if (result.hasErrors()) {
             Map<String, String> errorsMap = ControllerUtil.getErrors(result);
 
@@ -118,6 +117,15 @@ public class MessageController {
     ) {
         Page<MessageDto> page = messageService.messageListForUser(pageable, author);
 
+        addAtributePage(currentUser, author, model, message, page);
+
+        return "userMessages";
+    }
+
+    private void addAtributePage(@AuthenticationPrincipal User currentUser,
+                                 @PathVariable User author, Model model,
+                                 @RequestParam(required = false) Message message,
+                                 Page<MessageDto> page) {
         model.addAttribute("userChannel", author);
         model.addAttribute("subscriptionsCount", author.getSubscriptions().size());
         model.addAttribute("subscribersCount", author.getSubscribers().size());
@@ -126,16 +134,15 @@ public class MessageController {
         model.addAttribute("page", page);
         model.addAttribute("isCurrentUser", currentUser.equals(author));
         model.addAttribute("url", "/user-messages/" + author.getId());
-
-        return "userMessages";
     }
 
-    @PostMapping("/user-messages/{user}")
+    @PostMapping("/user-messages/{author}")
     public String updateMessage(
             @AuthenticationPrincipal User currentUser,
-            @PathVariable Long user,
+            @PathVariable User author,
+            @Valid Message message,
+            BindingResult result,
             Model model,
-            @RequestParam("id") Message message,
             @RequestParam("text") String text,
             @RequestParam(value = "tag") String tag,
             @RequestParam("file")MultipartFile file,
@@ -145,7 +152,12 @@ public class MessageController {
             message = new Message();
             message.setAuthor(currentUser);
         }
-        if (message.getAuthor().equals(currentUser)) {
+        if (result.hasErrors()) {
+            Map<String, String> errorsMap = ControllerUtil.getErrors(result);
+
+            model.mergeAttributes(errorsMap);
+            model.addAttribute("message", message);
+        } else if (message.getAuthor().equals(currentUser)) {
             if (!StringUtils.isEmpty(text)) {
                 message.setText(text);
             }
@@ -155,14 +167,14 @@ public class MessageController {
 
             saveFile(message, file);
 
+            model.addAttribute("message", null);
             messageRepository.save(message);
         }
 
         Page<MessageDto> page = messageRepository.findByUser(pageable, currentUser);
 
-        model.addAttribute("page", page);
-        model.addAttribute("url", "/user-messages/" + user);
-        return "redirect:/user-messages/" + user;
+        addAtributePage(currentUser, author, model, message, page);
+        return "userMessages";
     }
 
     @GetMapping("/messages/{message}/like")
